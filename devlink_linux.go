@@ -5,7 +5,7 @@ import (
 
 	"fmt"
 	"strings"
-	"github.com/vishvananda/netlink/nl"
+	"github.com/ipatrykx/netlink/nl"
 	"golang.org/x/sys/unix"
 )
 
