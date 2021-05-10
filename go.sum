@@ -1,3 +1,5 @@
+github.com/ipatrykx/netlink v1.1.1-0.20210510094303-c8a5d427ac31 h1:cSlai99PN1EJHJGLe1l6Yzihp3lEqKfDMBXIbH3NlCs=
+github.com/ipatrykx/netlink v1.1.1-0.20210510094303-c8a5d427ac31/go.mod h1:gEGTq/iUTOM08MeSsAMLhECQAQD9mVzGrXekhlXzuN0=
 github.com/vishvananda/netns v0.0.0-20200728191858-db3c7e526aae h1:4hwBBUfQCFe3Cym0ZtKyq7L16eZUtYKs+BaHDN6mAns=
 github.com/vishvananda/netns v0.0.0-20200728191858-db3c7e526aae/go.mod h1:DD4vA1DwXk04H54A1oHXtwZmA0grkVMdPxx/VGLCah0=
 golang.org/x/sys v0.0.0-20200217220822-9197077df867 h1:JoRuNIf+rpHl+VhScRQQvzbHed86tKkqwPMV34T8myw=
