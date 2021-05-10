@@ -4,6 +4,7 @@ import (
 	"syscall"
 
 	"fmt"
+	"strings"
 	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
 )
@@ -37,6 +38,22 @@ type DevlinkPort struct {
 	NetdevIfIndex  uint32
 	RdmaDeviceName string
 	PortFlavour    uint16
+}
+
+// DevlinkDeviceInfo represents devlink info
+type DevlinkDeviceInfo struct {
+	BoardID        string
+	FwApp          string
+	FwAppBoundleID string
+	FwAppName      string
+	FwBoundleID    string
+	FwMgmt         string
+	FwMgmtAPI      string
+	FwMgmtBuild    string
+	FwNetlist      string
+	FwNetlistBuild string
+	FwPsidAPI      string
+	FwUndi         string
 }
 
 func parseDevLinkDeviceList(msgs [][]byte) ([]*DevlinkDevice, error) {
@@ -390,4 +407,112 @@ func (h *Handle) DevLinkGetPortByIndex(Bus string, Device string, PortIndex uint
 // otherwise returns an error code.
 func DevLinkGetPortByIndex(Bus string, Device string, PortIndex uint32) (*DevlinkPort, error) {
 	return pkgHandle.DevLinkGetPortByIndex(Bus, Device, PortIndex)
+}
+
+// DevlinkGetDeviceInfoByName returns devlink info for selected device
+func DevlinkGetDeviceInfoByName(Bus string, Device string) (*DevlinkDeviceInfo, error) {
+	return pkgHandle.DevlinkGetDeviceInfoByName(Bus, Device)
+}
+
+// DevlinkGetDeviceInfoByName returns devlink info for selected device
+func (h *Handle) DevlinkGetDeviceInfoByName(Bus string, Device string) (*DevlinkDeviceInfo, error) {
+	_, req, err := h.createCmdReq(nl.DEVLINK_CMD_INFO_GET, Bus, Device)
+	if err != nil {
+		return nil, err
+	}
+
+	response, err := req.Execute(unix.NETLINK_GENERIC, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(response) < 1 {
+		return nil, fmt.Errorf("Response too short")
+	}
+
+	info, err := parseInfoMsg(response[0])
+	if err != nil {
+		return nil, err
+	}
+
+	infoData := parseInfoData(info)
+
+	return infoData, nil
+}
+
+func parseInfoMsg(msg []byte) (map[string]string, error) {
+	info := make(map[string]string)
+	err := collectInfoData(msg, info, true)
+	if err != nil {
+		return nil, err
+	}
+	return info, nil
+}
+
+func collectInfoData(msg []byte, data map[string]string, trim bool) error {
+	if trim {
+		if len(msg) < nl.SizeofGenlmsg {
+			return fmt.Errorf("collectInfoData: message too short")
+		}
+		msg = msg[nl.SizeofGenlmsg:]
+	}
+
+	attrs, err := nl.ParseRouteAttr(msg)
+	if err != nil {
+		return err
+	}
+
+	var key, value string
+	for _, attr := range attrs {
+		switch attr.Attr.Type {
+		case nl.DEVLINK_ATTR_INFO_VERSION_NAME:
+			key = strings.Replace(string(attr.Value), "\x00", "", -1)
+			key = strings.TrimSpace(key)
+		case nl.DEVLINK_ATTR_INFO_VERSION_VALUE:
+			value = strings.Replace(string(attr.Value), "\x00", "", -1)
+			value = strings.TrimSpace(value)
+			data[key] = value
+		default:
+			collectInfoData(attr.Value, data, false)
+		}
+	}
+
+	if len(data) == 0 {
+		return fmt.Errorf("parseInfoData: could not read attributes")
+	}
+
+	return nil
+}
+
+func parseInfoData(data map[string]string) *DevlinkDeviceInfo {
+	info := new(DevlinkDeviceInfo)
+	for key, value := range(data) {
+		switch key {
+		case "board.id":
+			info.BoardID = value
+		case "fw.app":
+			info.FwApp = value
+		case "fw.app.bundle_id":
+			info.FwAppBoundleID = value
+		case "fw.app.name":
+			info.FwAppName = value
+		case "fw.bundle_id":
+			info.FwBoundleID = value
+		case "fw.mgmt":
+			info.FwMgmt = value
+		case "fw.mgmt.api":
+			info.FwMgmtAPI = value
+		case "fw.mgmt.build":
+			info.FwMgmtBuild = value
+		case "fw.netlist":
+			info.FwNetlist = value
+		case "fw.netlist.build":
+			info.FwNetlistBuild = value
+		case "fw.psid.api":
+			info.FwPsidAPI = value
+		case "fw.undi":
+			info.FwUndi = value
+		}
+	}
+	return info
 }
