@@ -9,14 +9,6 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-const (
-	DEVLINK_CMD_INFO_GET = 51
-	DEVLINK_ATTR_INFO_DRIVER_NAME = 98
-	DEVLINK_ATTR_INFO_SERIAL_NUMBER = 99
-	DEVLINK_ATTR_INFO_VERSION_NAME   = 103
-	DEVLINK_ATTR_INFO_VERSION_VALUE  = 104
-)
-
 // DevlinkDevEswitchAttr represents device's eswitch attributes
 type DevlinkDevEswitchAttr struct {
 	Mode       string
@@ -479,7 +471,7 @@ func (d *DevlinkDevice) GetDevlinkInfoAsMap() (map[string]string, error) {
 }
 
 func (h *Handle) getDevlinkInfoMsg(bus, device string) ([]byte, error) {
-	_, req, err := h.createCmdReq(DEVLINK_CMD_INFO_GET, bus, device)
+	_, req, err := h.createCmdReq(nl.DEVLINK_CMD_INFO_GET, bus, device)
 	if err != nil {
 		return nil, err
 	}
@@ -521,13 +513,13 @@ func collectInfoData(msg []byte, data map[string]string, trim bool) error {
 	var key string
 	for _, attr := range attrs {
 		switch attr.Attr.Type {
-		case DEVLINK_ATTR_INFO_DRIVER_NAME:
+		case nl.DEVLINK_ATTR_INFO_DRIVER_NAME:
 			data["driver"] = parseInfoValue(attr.Value)
-		case DEVLINK_ATTR_INFO_SERIAL_NUMBER:
+		case nl.DEVLINK_ATTR_INFO_SERIAL_NUMBER:
 			data["serialNumber"] = parseInfoValue(attr.Value)
-		case DEVLINK_ATTR_INFO_VERSION_NAME:
+		case nl.DEVLINK_ATTR_INFO_VERSION_NAME:
 			key = parseInfoValue(attr.Value)
-		case DEVLINK_ATTR_INFO_VERSION_VALUE:
+		case nl.DEVLINK_ATTR_INFO_VERSION_VALUE:
 			data[key] = parseInfoValue(attr.Value)
 		default:
 			collectInfoData(attr.Value, data, false)
