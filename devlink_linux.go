@@ -5,8 +5,16 @@ import (
 
 	"fmt"
 	"strings"
-	"github.com/ipatrykx/netlink/nl"
+	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
+)
+
+const (
+	DEVLINK_CMD_INFO_GET = 51
+	DEVLINK_ATTR_INFO_DRIVER_NAME = 98
+	DEVLINK_ATTR_INFO_SERIAL_NUMBER = 99
+	DEVLINK_ATTR_INFO_VERSION_NAME   = 103
+	DEVLINK_ATTR_INFO_VERSION_VALUE  = 104
 )
 
 // DevlinkDevEswitchAttr represents device's eswitch attributes
@@ -42,6 +50,8 @@ type DevlinkPort struct {
 
 // DevlinkDeviceInfo represents devlink info
 type DevlinkDeviceInfo struct {
+	Driver         string
+	SerialNumber   string
 	BoardID        string
 	FwApp          string
 	FwAppBoundleID string
@@ -409,14 +419,67 @@ func DevLinkGetPortByIndex(Bus string, Device string, PortIndex uint32) (*Devlin
 	return pkgHandle.DevLinkGetPortByIndex(Bus, Device, PortIndex)
 }
 
-// DevlinkGetDeviceInfoByName returns devlink info for selected device
-func DevlinkGetDeviceInfoByName(Bus string, Device string) (*DevlinkDeviceInfo, error) {
-	return pkgHandle.DevlinkGetDeviceInfoByName(Bus, Device)
+// devlinkInfoGetter is function that is repsonsible for getting devlink info message
+// this is introduced for test purpose
+type devlinkInfoGetter func(bus, device string) ([]byte, error)
+
+// DevlinkGetDeviceInfoByName returns devlink info for selected device,
+// otherwise returns an error code.
+// Equivalent to: `devlink dev info $dev`
+func (h *Handle) DevlinkGetDeviceInfoByName(Bus string, Device string, getInfoMsg devlinkInfoGetter) (*DevlinkDeviceInfo, error) {
+	info, err := h.DevlinkGetDeviceInfoByNameAsMap(Bus, Device, getInfoMsg)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseInfoData(info), nil
 }
 
-// DevlinkGetDeviceInfoByName returns devlink info for selected device
-func (h *Handle) DevlinkGetDeviceInfoByName(Bus string, Device string) (*DevlinkDeviceInfo, error) {
-	_, req, err := h.createCmdReq(nl.DEVLINK_CMD_INFO_GET, Bus, Device)
+// DevlinkGetDeviceInfoByName returns devlink info for selected device,
+// otherwise returns an error code.
+// Equivalent to: `devlink dev info $dev`
+func DevlinkGetDeviceInfoByName(Bus string, Device string) (*DevlinkDeviceInfo, error) {
+	return pkgHandle.DevlinkGetDeviceInfoByName(Bus, Device, pkgHandle.getDevlinkInfoMsg)
+}
+
+// DevlinkGetDeviceInfoByNameAsMap returns devlink info for selected device as a map,
+// otherwise returns an error code.
+// Equivalent to: `devlink dev info $dev`
+func (h *Handle) DevlinkGetDeviceInfoByNameAsMap(Bus string, Device string, getInfoMsg devlinkInfoGetter) (map[string]string, error) {
+	response, err := getInfoMsg(Bus, Device)
+	if err != nil {
+		return nil, err
+	}
+
+	info, err := parseInfoMsg(response)
+	if err != nil {
+		return nil, err
+	}
+
+	return info, nil
+}
+
+// DevlinkGetDeviceInfoByNameAsMap returns devlink info for selected device as a map,
+// otherwise returns an error code.
+// Equivalent to: `devlink dev info $dev`
+func DevlinkGetDeviceInfoByNameAsMap(Bus string, Device string) (map[string]string, error) {
+	return pkgHandle.DevlinkGetDeviceInfoByNameAsMap(Bus, Device, pkgHandle.getDevlinkInfoMsg)
+}
+
+// GetDevlinkInfo returns devlink info for target device,
+// otherwise returns an error code.
+func (d *DevlinkDevice) GetDevlinkInfo() (*DevlinkDeviceInfo, error) {
+	return pkgHandle.DevlinkGetDeviceInfoByName(d.BusName, d.DeviceName, pkgHandle.getDevlinkInfoMsg)
+}
+
+// GetDevlinkInfoAsMap returns devlink info for target device as a map,
+// otherwise returns an error code.
+func (d *DevlinkDevice) GetDevlinkInfoAsMap() (map[string]string, error) {
+	return pkgHandle.DevlinkGetDeviceInfoByNameAsMap(d.BusName, d.DeviceName, pkgHandle.getDevlinkInfoMsg)
+}
+
+func (h *Handle) getDevlinkInfoMsg(bus, device string) ([]byte, error) {
+	_, req, err := h.createCmdReq(DEVLINK_CMD_INFO_GET, bus, device)
 	if err != nil {
 		return nil, err
 	}
@@ -427,17 +490,10 @@ func (h *Handle) DevlinkGetDeviceInfoByName(Bus string, Device string) (*Devlink
 	}
 
 	if len(response) < 1 {
-		return nil, fmt.Errorf("Response too short")
+		return nil, fmt.Errorf("getDevlinkInfoMsg: message too short")
 	}
 
-	info, err := parseInfoMsg(response[0])
-	if err != nil {
-		return nil, err
-	}
-
-	infoData := parseInfoData(info)
-
-	return infoData, nil
+	return response[0], nil
 }
 
 func parseInfoMsg(msg []byte) (map[string]string, error) {
@@ -462,23 +518,24 @@ func collectInfoData(msg []byte, data map[string]string, trim bool) error {
 		return err
 	}
 
-	var key, value string
+	var key string
 	for _, attr := range attrs {
 		switch attr.Attr.Type {
-		case nl.DEVLINK_ATTR_INFO_VERSION_NAME:
-			key = strings.Replace(string(attr.Value), "\x00", "", -1)
-			key = strings.TrimSpace(key)
-		case nl.DEVLINK_ATTR_INFO_VERSION_VALUE:
-			value = strings.Replace(string(attr.Value), "\x00", "", -1)
-			value = strings.TrimSpace(value)
-			data[key] = value
+		case DEVLINK_ATTR_INFO_DRIVER_NAME:
+			data["driver"] = parseInfoValue(attr.Value)
+		case DEVLINK_ATTR_INFO_SERIAL_NUMBER:
+			data["serialNumber"] = parseInfoValue(attr.Value)
+		case DEVLINK_ATTR_INFO_VERSION_NAME:
+			key = parseInfoValue(attr.Value)
+		case DEVLINK_ATTR_INFO_VERSION_VALUE:
+			data[key] = parseInfoValue(attr.Value)
 		default:
 			collectInfoData(attr.Value, data, false)
 		}
 	}
 
 	if len(data) == 0 {
-		return fmt.Errorf("parseInfoData: could not read attributes")
+		return fmt.Errorf("collectInfoData: could not read attributes")
 	}
 
 	return nil
@@ -488,6 +545,10 @@ func parseInfoData(data map[string]string) *DevlinkDeviceInfo {
 	info := new(DevlinkDeviceInfo)
 	for key, value := range(data) {
 		switch key {
+		case "driver":
+			info.Driver = value
+		case "serialNumber":
+			info.SerialNumber = value
 		case "board.id":
 			info.BoardID = value
 		case "fw.app":
@@ -515,4 +576,9 @@ func parseInfoData(data map[string]string) *DevlinkDeviceInfo {
 		}
 	}
 	return info
+}
+
+func parseInfoValue(value []byte) string {
+	v := strings.Replace(string(value), "\x00", "", -1)
+	return strings.TrimSpace(v)
 }
