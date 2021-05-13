@@ -75,9 +75,9 @@ func TestDevlinkGetDeviceInfoByNameAsMap(t *testing.T) {
 		t.Fatal(err)
 	}
 	testInfo := devlinkTestInfoParesd()
-	for k, v := range(info) {
+	for k, v := range info {
 		if testInfo[k] != v {
-			t.Fatal("Value", v, "retrieved for key", k, "is not equal to", testInfo[k] )
+			t.Fatal("Value", v, "retrieved for key", k, "is not equal to", testInfo[k])
 		}
 	}
 }
@@ -134,16 +134,16 @@ func devlinkTestInfoParesd() map[string]string {
 		"fw.psid.api":      "2.42",
 		"fw.undi":          "1.2898.0",
 		"driver":           "ice",
-        "serialNumber":     "30-89-a3-ff-ff-ca-05-68",
+		"serialNumber":     "30-89-a3-ff-ff-ca-05-68",
 	}
 }
 
 func areInfoStructsEqual(first *DevlinkDeviceInfo, second *DevlinkDeviceInfo) bool {
 	if first.FwApp != second.FwApp || first.FwAppBoundleID != second.FwAppBoundleID || first.FwAppName != second.FwAppName ||
-	   first.FwBoundleID != second.FwBoundleID || first.FwMgmt != second.FwMgmt || first.FwMgmtAPI != second.FwMgmtAPI ||
-	   first.FwMgmtBuild != second.FwMgmtBuild || first.FwNetlist != second.FwNetlist || first.FwNetlistBuild != second.FwNetlistBuild ||
-	   first.FwPsidAPI != second.FwPsidAPI|| first.BoardID != second.BoardID || first.FwUndi != second.FwUndi ||
-	   first.Driver != second.Driver || first.SerialNumber != second.SerialNumber {
+		first.FwBoundleID != second.FwBoundleID || first.FwMgmt != second.FwMgmt || first.FwMgmtAPI != second.FwMgmtAPI ||
+		first.FwMgmtBuild != second.FwMgmtBuild || first.FwNetlist != second.FwNetlist || first.FwNetlistBuild != second.FwNetlistBuild ||
+		first.FwPsidAPI != second.FwPsidAPI || first.BoardID != second.BoardID || first.FwUndi != second.FwUndi ||
+		first.Driver != second.Driver || first.SerialNumber != second.SerialNumber {
 		return false
 	}
 	return true

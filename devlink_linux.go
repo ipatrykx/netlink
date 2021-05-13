@@ -4,9 +4,9 @@ import (
 	"syscall"
 
 	"fmt"
-	"strings"
 	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
+	"strings"
 )
 
 // DevlinkDevEswitchAttr represents device's eswitch attributes
@@ -535,7 +535,7 @@ func collectInfoData(msg []byte, data map[string]string, trim bool) error {
 
 func parseInfoData(data map[string]string) *DevlinkDeviceInfo {
 	info := new(DevlinkDeviceInfo)
-	for key, value := range(data) {
+	for key, value := range data {
 		switch key {
 		case "driver":
 			info.Driver = value
