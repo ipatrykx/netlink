@@ -248,7 +248,7 @@ func (h *Handle) createCmdReq(cmd uint8, bus string, device string) (*GenlFamily
 	return f, req, nil
 }
 
-// DevlinkGetDeviceByName provides a pointer to devlink device and nil error,
+// DevLinkGetDeviceByName provides a pointer to devlink device and nil error,
 // otherwise returns an error code.
 func (h *Handle) DevLinkGetDeviceByName(Bus string, Device string) (*DevlinkDevice, error) {
 	f, req, err := h.createCmdReq(nl.DEVLINK_CMD_GET, Bus, Device)
@@ -267,7 +267,7 @@ func (h *Handle) DevLinkGetDeviceByName(Bus string, Device string) (*DevlinkDevi
 	return dev, err
 }
 
-// DevlinkGetDeviceByName provides a pointer to devlink device and nil error,
+// DevLinkGetDeviceByName provides a pointer to devlink device and nil error,
 // otherwise returns an error code.
 func DevLinkGetDeviceByName(Bus string, Device string) (*DevlinkDevice, error) {
 	return pkgHandle.DevLinkGetDeviceByName(Bus, Device)
